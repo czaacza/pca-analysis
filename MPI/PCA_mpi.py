@@ -1,11 +1,20 @@
-class PCA_SVD:
+from mpi4py import MPI
+import math
+
+class PCA_SVD_Parallel:
     def __init__(self, n_components):
         self.n_components = n_components
         self.components_ = None
         self.explained_variance_ = None
+        self.comm = MPI.COMM_WORLD
+        self.rank = self.comm.Get_rank()
+        self.size = self.comm.Get_size()
 
     def mean(self, X):
-        return [sum(col) / len(col) for col in zip(*X)]
+        local_sum = [sum(col) for col in zip(*X)]
+        global_sum = self.comm.allreduce(local_sum, op=MPI.SUM)
+        mean = [val / (len(X) * self.size) for val in global_sum]
+        return mean
 
     def center_data(self, X, mean):
         return [[x - m for x, m in zip(row, mean)] for row in X]
@@ -27,7 +36,7 @@ class PCA_SVD:
 
     def svd(self, A):
         def normalize(v):
-            norm = sum(x ** 2 for x in v) ** 0.5
+            norm = math.sqrt(sum(x ** 2 for x in v))
             return [x / norm for x in v]
 
         def dot_product(v1, v2):
@@ -67,9 +76,10 @@ class PCA_SVD:
         sorted_indices = sorted(range(len(eigenvalues)), key=lambda k: eigenvalues[k], reverse=True)
 
         sum_of_variances = sum(eigenvalues)
-        for (i, value) in enumerate(eigenvalues):
-            percent = value / sum_of_variances * 100
-            print(f'PC {i + 1} (of all): {percent:.2f}%')
+        if self.rank == 0:
+            for (i, value) in enumerate(eigenvalues):
+                percent = value / sum_of_variances * 100
+                print(f'PC {i + 1} (of all): {percent:.2f}%')
 
         self.components_ = [eigenvectors[i] for i in sorted_indices[:self.n_components]]
         self.explained_variance_ = [eigenvalues[i] for i in sorted_indices[:self.n_components]]
@@ -84,19 +94,30 @@ class PCA_SVD:
         self.fit(X)
         return self.transform(X)
 
-def custom_pca(scaled_data, n_components=2):
-    pca = PCA_SVD(n_components=n_components)
-    principal_components = pca.fit_transform(scaled_data)
-    explained_variances = pca.explained_variance_
-    return principal_components, explained_variances
+def custom_pca_parallel(scaled_data, n_components=2):
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
 
-def list_shape(lst):
-    if isinstance(lst, list):
-        if not lst:
-            return (0,)
-        elif isinstance(lst[0], list):
-            return (len(lst), len(lst[0]))
-        else:
-            return (len(lst),)
+    # Scatter data to processes
+    data_per_process = len(scaled_data) // size
+    if rank == 0:
+        data_chunks = [scaled_data[i*data_per_process:(i+1)*data_per_process] for i in range(size)]
     else:
-        return ()
+        data_chunks = None
+
+    local_data = comm.scatter(data_chunks, root=0)
+
+    pca = PCA_SVD_Parallel(n_components=n_components)
+    local_principal_components = pca.fit_transform(local_data)
+
+    # Gather results from all processes
+    gathered_components = comm.gather(local_principal_components, root=0)
+    explained_variances = comm.gather(pca.explained_variance_, root=0)
+
+    if rank == 0:
+        principal_components = [item for sublist in gathered_components for item in sublist]
+        explained_variances = explained_variances[0]  # All processes have the same variances
+        return principal_components, explained_variances
+    else:
+        return None, None

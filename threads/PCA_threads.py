@@ -1,4 +1,7 @@
-class PCA_SVD:
+import concurrent.futures
+import threading
+
+class PCA_SVD_Parallel:
     def __init__(self, n_components):
         self.n_components = n_components
         self.components_ = None
@@ -45,9 +48,25 @@ class PCA_SVD:
             eigenvector = b_k
             return eigenvalue, eigenvector
 
+        def parallel_power_iteration(M, num_simulations, results, index):
+            results[index] = power_iteration(M, num_simulations)
+
         eigenvalues, eigenvectors = [], []
         for _ in range(len(A)):
-            eigenvalue, eigenvector = power_iteration(A, 100)
+            num_simulations = 100
+            num_threads = 4  # You can adjust this number based on your system's capability
+            results = [None] * num_threads
+
+            threads = []
+            for i in range(num_threads):
+                thread = threading.Thread(target=parallel_power_iteration, args=(A, num_simulations, results, i))
+                threads.append(thread)
+                thread.start()
+
+            for thread in threads:
+                thread.join()
+
+            eigenvalue, eigenvector = max(results, key=lambda x: x[0])
             eigenvalues.append(eigenvalue)
             eigenvectors.append(eigenvector)
             A = self.subtract(A, self.outer_product(eigenvector, eigenvector, eigenvalue))
@@ -84,8 +103,8 @@ class PCA_SVD:
         self.fit(X)
         return self.transform(X)
 
-def custom_pca(scaled_data, n_components=2):
-    pca = PCA_SVD(n_components=n_components)
+def custom_pca_parallel(scaled_data, n_components=2):
+    pca = PCA_SVD_Parallel(n_components=n_components)
     principal_components = pca.fit_transform(scaled_data)
     explained_variances = pca.explained_variance_
     return principal_components, explained_variances

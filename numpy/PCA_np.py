@@ -1,3 +1,6 @@
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+
 class PCA_SVD:
     def __init__(self, n_components):
         self.n_components = n_components
@@ -5,39 +8,36 @@ class PCA_SVD:
         self.explained_variance_ = None
 
     def mean(self, X):
-        return [sum(col) / len(col) for col in zip(*X)]
+        return np.mean(X, axis=0).tolist()
 
     def center_data(self, X, mean):
-        return [[x - m for x, m in zip(row, mean)] for row in X]
+        return X - mean
 
     def transpose(self, X):
-        return list(map(list, zip(*X)))
+        return np.transpose(X).tolist()
 
     def multiply(self, A, B):
-        return [[sum(a * b for a, b in zip(A_row, B_col)) for B_col in zip(*B)] for A_row in A]
+        return np.dot(A, B).tolist()
 
     def covariance_matrix(self, X):
         n_samples = len(X)
         X_transposed = self.transpose(X)
-        cov_matrix = [[0] * len(X_transposed) for _ in range(len(X_transposed))]
-        for i in range(len(X_transposed)):
-            for j in range(len(X_transposed)):
-                cov_matrix[i][j] = sum(X_transposed[i][k] * X_transposed[j][k] for k in range(n_samples)) / (n_samples - 1)
+        cov_matrix = np.cov(X_transposed, bias=False).tolist()
         return cov_matrix
 
     def svd(self, A):
         def normalize(v):
-            norm = sum(x ** 2 for x in v) ** 0.5
-            return [x / norm for x in v]
+            norm = np.linalg.norm(v)
+            return (v / norm).tolist()
 
         def dot_product(v1, v2):
-            return sum(x * y for x, y in zip(v1, v2))
+            return np.dot(v1, v2)
 
         def matrix_vector_multiply(M, v):
-            return [sum(M_row[j] * v[j] for j in range(len(v))) for M_row in M]
+            return np.dot(M, v).tolist()
 
         def power_iteration(M, num_simulations):
-            b_k = [1.0] * len(M)
+            b_k = np.ones(len(M)).tolist()
             for _ in range(num_simulations):
                 b_k = matrix_vector_multiply(M, b_k)
                 b_k = normalize(b_k)
@@ -54,17 +54,18 @@ class PCA_SVD:
         return eigenvalues, eigenvectors
 
     def subtract(self, A, B):
-        return [[A[i][j] - B[i][j] for j in range(len(A[0]))] for i in range(len(A))]
+        return (np.array(A) - np.array(B)).tolist()
 
     def outer_product(self, v1, v2, scalar):
-        return [[v1[i] * v2[j] * scalar for j in range(len(v2))] for i in range(len(v1))]
+        return (np.outer(v1, v2) * scalar).tolist()
 
     def fit(self, X):
+        X = np.array(X)
         mean = self.mean(X)
         X_centered = self.center_data(X, mean)
         cov_matrix = self.covariance_matrix(X_centered)
         eigenvalues, eigenvectors = self.svd(cov_matrix)
-        sorted_indices = sorted(range(len(eigenvalues)), key=lambda k: eigenvalues[k], reverse=True)
+        sorted_indices = np.argsort(eigenvalues)[::-1]
 
         sum_of_variances = sum(eigenvalues)
         for (i, value) in enumerate(eigenvalues):
@@ -76,6 +77,7 @@ class PCA_SVD:
         return self
 
     def transform(self, X):
+        X = np.array(X)
         mean = self.mean(X)
         X_centered = self.center_data(X, mean)
         return self.multiply(X_centered, self.transpose(self.components_))

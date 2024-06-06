@@ -2,10 +2,10 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import time
-from PCA_seq import custom_pca
+from PCA_multiproc import custom_pca
 
 def main():
-    immigration_data = pd.read_csv('./datasets/EU_Immigrants.csv')
+    immigration_data = pd.read_csv('../datasets/EU_Immigrants.csv')
     print('immigration_data', immigration_data)
 
     # Dropping rows with all null values and resetting the index

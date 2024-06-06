@@ -32,10 +32,12 @@ def main():
         percent = value / sum_of_variances * 100
         if percent > 1:
             print(f'PC {i + 1} (of chosen): {percent:.2f}%')
+    
+    print('principal_components:', principal_components)
 
 
     # Applying K-means clustering with the optimal number of clusters found
-    optimal_k = 3  # Assuming from previous elbow method
+    optimal_k = 5  # Assuming from previous elbow method
 
     # measure KMeans time
     kmeans_start = time.time()

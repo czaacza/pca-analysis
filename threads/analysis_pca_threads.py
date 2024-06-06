@@ -2,10 +2,10 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import time
-from PCA_seq import custom_pca
+from PCA_threads import custom_pca_parallel
 
 def main():
-    immigration_data = pd.read_csv('./datasets/EU_Immigrants.csv')
+    immigration_data = pd.read_csv('../datasets/EU_Immigrants.csv')
     print('immigration_data', immigration_data)
 
     # Dropping rows with all null values and resetting the index
@@ -22,7 +22,7 @@ def main():
 
     # measure PCA time
     pca_start = time.time()
-    principal_components, explained_variances = custom_pca(scaled_data, n_components=2)
+    principal_components, explained_variances = custom_pca_parallel(scaled_data, n_components=2)
     pca_end = time.time()
 
     print('principal_components:', principal_components)
@@ -36,7 +36,7 @@ def main():
         percent = value / sum_of_variances * 100
         print(f'PC {i + 1} (of chosen): {percent:.2f}%')
     
-    print('PCA sequential time:', pca_end - pca_start)
+    print('PCA parallel time:', pca_end - pca_start)
 
 
 if __name__ == '__main__':
