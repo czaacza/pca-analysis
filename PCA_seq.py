@@ -66,11 +66,6 @@ class PCA_SVD:
         eigenvalues, eigenvectors = self.svd(cov_matrix)
         sorted_indices = sorted(range(len(eigenvalues)), key=lambda k: eigenvalues[k], reverse=True)
 
-        sum_of_variances = sum(eigenvalues)
-        for (i, value) in enumerate(eigenvalues):
-            percent = value / sum_of_variances * 100
-            print(f'PC {i + 1} (of all): {percent:.2f}%')
-
         self.components_ = [eigenvectors[i] for i in sorted_indices[:self.n_components]]
         self.explained_variance_ = [eigenvalues[i] for i in sorted_indices[:self.n_components]]
         return self

@@ -1,5 +1,4 @@
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
 
 class PCA_SVD:
     def __init__(self, n_components):
@@ -66,11 +65,6 @@ class PCA_SVD:
         cov_matrix = self.covariance_matrix(X_centered)
         eigenvalues, eigenvectors = self.svd(cov_matrix)
         sorted_indices = np.argsort(eigenvalues)[::-1]
-
-        sum_of_variances = sum(eigenvalues)
-        for (i, value) in enumerate(eigenvalues):
-            percent = value / sum_of_variances * 100
-            print(f'PC {i + 1} (of all): {percent:.2f}%')
 
         self.components_ = [eigenvectors[i] for i in sorted_indices[:self.n_components]]
         self.explained_variance_ = [eigenvalues[i] for i in sorted_indices[:self.n_components]]

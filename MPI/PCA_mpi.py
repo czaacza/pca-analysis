@@ -99,7 +99,6 @@ def custom_pca_parallel(scaled_data, n_components=2):
     rank = comm.Get_rank()
     size = comm.Get_size()
 
-    # Scatter data to processes
     data_per_process = len(scaled_data) // size
     if rank == 0:
         data_chunks = [scaled_data[i*data_per_process:(i+1)*data_per_process] for i in range(size)]
@@ -111,7 +110,6 @@ def custom_pca_parallel(scaled_data, n_components=2):
     pca = PCA_SVD_Parallel(n_components=n_components)
     local_principal_components = pca.fit_transform(local_data)
 
-    # Gather results from all processes
     gathered_components = comm.gather(local_principal_components, root=0)
     explained_variances = comm.gather(pca.explained_variance_, root=0)
 

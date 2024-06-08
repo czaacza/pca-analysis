@@ -1,63 +1,51 @@
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
+import numpy as np
 import time
 from PCA_seq import custom_pca
 from KMeans_seq import custom_kmeans
 
 def main():
-    immigration_data = pd.read_csv('./datasets/EU_Immigrants.csv')
-    # print('immigration_data head', immigration_data.head())
+    full_start = time.time()
+    data = pd.read_csv('./datasets/oof.csv')
 
-    # Dropping rows with all null values and resetting the index
-    cleaned_data = immigration_data.dropna(how='all').reset_index(drop=True)
-
-    # Selecting numerical columns (excluding country names)
-    features = cleaned_data.columns[1:]
-
-    # Standardizing the data
+    data.columns.values[0] = "id"
+    cleaned_data = data.dropna(how='all').reset_index(drop=True)
+    features = cleaned_data.columns[100:]
+    
     scaler = StandardScaler()
     scaled_data = scaler.fit_transform(cleaned_data[features])
+    scaled_data = scaled_data[:5000]  # Assume sufficient data
+    print('scaled_data shape:', scaled_data.shape)
 
-    # measure PCA time
     pca_start = time.time()
     principal_components, explained_variances = custom_pca(scaled_data, n_components=2)
+    principal_components = np.array(principal_components)  # Ensure this is an array
     pca_end = time.time()
 
-    explained_variance_sum = sum(explained_variances)
-    explained_variance = [var / explained_variance_sum for var in explained_variances]    
+    print("explained_variances", explained_variances)
 
-    sum_of_variances = sum(explained_variance)
-    for (i, value) in enumerate(explained_variance):
-        percent = value / sum_of_variances * 100
-        if percent > 1:
-            print(f'PC {i + 1} (of chosen): {percent:.2f}%')
-    
-    print('principal_components:', principal_components)
-
-
-    # Applying K-means clustering with the optimal number of clusters found
-    optimal_k = 5  # Assuming from previous elbow method
-
-    # measure KMeans time
+    optimal_k = 5
     kmeans_start = time.time()
-    centers, labels = custom_kmeans(principal_components, optimal_k)
+    centers, labels = custom_kmeans(principal_components.tolist(), optimal_k)  # Ensure data compatibility
     kmeans_end = time.time()
-    print('KMeans sequential time:', kmeans_end - kmeans_start)
+    full_end = time.time()
 
-    # Convert lists to lists of lists for plotting
-    centers = [list(center) for center in centers]
-    principal_components = [list(pc) for pc in principal_components]
+    print("centers", centers, "labels", labels)
 
-    # Plotting the clusters
+    pca_time = (pca_end - pca_start).__str__().replace('.', ',')
+    kmeans_time = (kmeans_end - kmeans_start).__str__().replace('.', ',')
+    full_time = (full_end - full_start).__str__().replace('.', ',')
+    print("PCA_time", "KMeans_time", "Full_time")
+    print(pca_time, kmeans_time, full_time)
+
     plt.figure(figsize=(10, 6))
-    plt.scatter([pc[0] for pc in principal_components], [pc[1] for pc in principal_components], c=labels, cmap='viridis', s=50, alpha=0.6)
-    plt.scatter([center[0] for center in centers], [center[1] for center in centers], c='red', s=200, alpha=0.75, marker='X')  # Cluster centers
-    for i, txt in enumerate(cleaned_data['EU COUNTRIES']):
-        plt.annotate(txt, (principal_components[i][0], principal_components[i][1]))
+    plt.scatter(principal_components[:, 0], principal_components[:, 1], c=labels, cmap='viridis', s=50, alpha=0.6)
+    plt.scatter([center[0] for center in centers], [center[1] for center in centers], c='red', s=200, alpha=0.75, marker='X')
     plt.title('Clusters of EU Countries Based on Immigration Statistics 2022')
-    plt.xlabel('PC 1 {}'.format(f'[{(explained_variance[0] * 100):.2f}%]'))
-    plt.ylabel('PC 2 {}'.format(f'[{(explained_variance[1] * 100):.2f}%]'))
+    plt.xlabel(f'PC 1 [{(explained_variances[0] / sum(explained_variances) * 100):.2f}%]')
+    plt.ylabel(f'PC 2 [{(explained_variances[1] / sum(explained_variances) * 100):.2f}%]')
     plt.grid(True)
     plt.show()
 

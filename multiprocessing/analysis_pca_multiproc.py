@@ -3,24 +3,28 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import time
 from PCA_multiproc import custom_pca
+import cProfile
+import pstats
 
 def main():
-    immigration_data = pd.read_csv('../datasets/EU_Immigrants.csv')
-    print('immigration_data', immigration_data)
+    immigration_data = pd.read_csv('../datasets/oof.csv')
 
     # Dropping rows with all null values and resetting the index
     cleaned_data = immigration_data.dropna(how='all').reset_index(drop=True)
 
     # Selecting numerical columns (excluding country names)
-    features = cleaned_data.columns[1:]
+    features = cleaned_data.columns[150:]
 
     # Standardizing the data
     scaler = StandardScaler()
     scaled_data = scaler.fit_transform(cleaned_data[features])
 
-    print('scaled_data', scaled_data)
+    scaled_data = scaled_data[:10000]
+
+    print('scaled_data shape:', scaled_data.shape)
 
     # measure PCA time
+    print("Starting PCA")
     pca_start = time.time()
     principal_components, explained_variances = custom_pca(scaled_data, n_components=2)
     pca_end = time.time()
@@ -40,4 +44,9 @@ def main():
 
 
 if __name__ == '__main__':
+    profiler = cProfile.Profile()
+    profiler.enable()
     main()
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats('cumtime')
+    stats.print_stats(10)

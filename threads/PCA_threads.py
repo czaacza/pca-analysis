@@ -54,7 +54,7 @@ class PCA_SVD_Parallel:
         eigenvalues, eigenvectors = [], []
         for _ in range(len(A)):
             num_simulations = 100
-            num_threads = 4  # You can adjust this number based on your system's capability
+            num_threads = 4 
             results = [None] * num_threads
 
             threads = []
