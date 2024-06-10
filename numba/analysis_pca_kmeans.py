@@ -16,8 +16,8 @@ def main():
     cleaned_data = data.dropna(how='all').reset_index(drop=True)
 
     # Selecting numerical columns (excluding country names)
-    features = cleaned_data.columns[100:]
-    # features = cleaned_data.columns[1:]
+    # features = cleaned_data.columns[100:]
+    features = cleaned_data.columns[1:]
 
     # Standardizing the data
     scaler = StandardScaler()
@@ -55,7 +55,7 @@ def main():
     if len(data['id']) == len(principal_components):
         for i, txt in enumerate(data['id']):
             plt.annotate(txt, (principal_components[i, 0], principal_components[i, 1]))
-    plt.title('Clusters of EU Countries Based on Immigration Statistics 2022')
+    plt.title('Drug Response Clustering Based on PCA and KMeans (Numba)')
     plt.xlabel(f'PC 1 [{(explained_variance[0] * 100):.2f}%]')
     plt.ylabel(f'PC 2 [{(explained_variance[1] * 100):.2f}%]')
     plt.grid(True)
