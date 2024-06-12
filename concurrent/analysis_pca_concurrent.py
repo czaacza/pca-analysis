@@ -4,26 +4,30 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import time
 import asyncio
-from PCA_asyncio_concurrent import PCA_SVD_Async, custom_pca_async
+from PCA_concurrent import PCA_SVD_concurrent, custom_pca_concurrent
 
 
-async def main():
-    immigration_data = pd.read_csv('../datasets/EU_Immigrants.csv')
+def main():
+    immigration_data = pd.read_csv('../datasets/oof.csv')
 
     # Dropping rows with all null values and resetting the index
     cleaned_data = immigration_data.dropna(how='all').reset_index(drop=True)
 
-
     # Selecting numerical columns (excluding country names)
-    features = cleaned_data.columns[1:]
+    features = cleaned_data.columns[150:]
 
     # Standardizing the data
     scaler = StandardScaler()
     scaled_data = scaler.fit_transform(cleaned_data[features])
 
+    scaled_data = scaled_data[:10000]
+
+    print('scaled_data shape:', scaled_data.shape)
+
     # measure PCA time
+    print("Starting PCA")
     pca_start = time.time()
-    principal_components, explained_variances = await custom_pca_async(scaled_data, n_components=2)
+    principal_components, explained_variances = custom_pca_concurrent(scaled_data, n_components=2)
     pca_end = time.time()
 
     if principal_components is not None and explained_variances is not None:
@@ -41,4 +45,4 @@ async def main():
         print('PCA parallel time:', pca_end - pca_start)
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
