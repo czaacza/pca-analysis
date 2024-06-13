@@ -1,41 +1,55 @@
-# MPI analysis_pca_mpi.py
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import time
-from PCA_mpi import custom_pca_parallel
+from mpi4py import MPI
+from PCA_mpi import PCA_SVD_MPI
 
 def main():
-    immigration_data = pd.read_csv('../datasets/EU_Immigrants.csv')
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
 
-    # Dropping rows with all null values and resetting the index
-    cleaned_data = immigration_data.dropna(how='all').reset_index(drop=True)
+    if rank == 0:
+        immigration_data = pd.read_csv('../datasets/oof.csv')
 
-    # Selecting numerical columns (excluding country names)
-    features = cleaned_data.columns[1:]
+        cleaned_data = immigration_data.dropna(how='all').reset_index(drop=True)
 
-    # Standardizing the data
-    scaler = StandardScaler()
-    scaled_data = scaler.fit_transform(cleaned_data[features])
+        features = cleaned_data.columns[150:]
 
-    # measure PCA time
-    pca_start = time.time()
-    principal_components, explained_variances = custom_pca_parallel(scaled_data, n_components=2)
-    pca_end = time.time()
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(cleaned_data[features])
 
-    if principal_components is not None and explained_variances is not None:
-        print('principal_components:', principal_components)
-        print('explained_variances:', explained_variances)
+        scaled_data = scaled_data[:10000]
 
-        explained_variance_sum = sum(explained_variances)
-        explained_variance = [var / explained_variance_sum for var in explained_variances]
+        print('scaled_data shape:', scaled_data.shape)
+    else:
+        scaled_data = None
 
-        sum_of_variances = sum(explained_variance)
-        for (i, value) in enumerate(explained_variance):
-            percent = value / sum_of_variances * 100
-            print(f'PC {i + 1} (of chosen): {percent:.2f}%')
+    scaled_data = comm.bcast(scaled_data, root=0)
 
-        print('PCA parallel time:', pca_end - pca_start)
+    if rank == 0:
+        print("Starting PCA")
+        pca_start = time.time()
+
+    pca = PCA_SVD_MPI(n_components=2)
+    components, explained_variances = pca.custom_pca_mpi(scaled_data)
+
+    if rank == 0:
+        pca_end = time.time()
+
+        if components is not None and explained_variances is not None:
+            print('principal_components:', components)
+            print('explained_variances:', explained_variances)
+
+            explained_variance_sum = sum(explained_variances)
+            explained_variance = [var / explained_variance_sum for var in explained_variances]
+
+            sum_of_variances = sum(explained_variance)
+            for (i, value) in enumerate(explained_variance):
+                percent = value / sum_of_variances * 100
+                print(f'PC {i + 1} (of chosen): {percent:.2f}%')
+
+            print('PCA parallel time:', pca_end - pca_start)
 
 if __name__ == '__main__':
     main()
