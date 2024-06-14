@@ -1,6 +1,5 @@
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
 import time
 from mpi4py import MPI
 from PCA_mpi import PCA_SVD_MPI
@@ -10,16 +9,16 @@ def main():
     rank = comm.Get_rank()
 
     if rank == 0:
-        immigration_data = pd.read_csv('../datasets/oof.csv')
+        immigration_data = pd.read_csv('./datasets/oof.csv')
 
         cleaned_data = immigration_data.dropna(how='all').reset_index(drop=True)
 
-        features = cleaned_data.columns[150:]
+        features = cleaned_data.columns[100:]
 
         scaler = StandardScaler()
         scaled_data = scaler.fit_transform(cleaned_data[features])
 
-        scaled_data = scaled_data[:10000]
+        scaled_data = scaled_data[:5000]
 
         print('scaled_data shape:', scaled_data.shape)
     else:

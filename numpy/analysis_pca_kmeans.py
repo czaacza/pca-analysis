@@ -16,12 +16,12 @@ def main():
     
     scaler = StandardScaler()
     scaled_data = scaler.fit_transform(cleaned_data[features])
-    scaled_data = scaled_data[:5000]  # Assume sufficient data
+    scaled_data = scaled_data[:5000]
     print('scaled_data shape:', scaled_data.shape)
 
     pca_start = time.time()
     principal_components, explained_variances = custom_pca(scaled_data, n_components=2)
-    principal_components = np.array(principal_components)  # Ensure this is an array
+    principal_components = np.array(principal_components)
     pca_end = time.time()
 
     print("explained_variances", explained_variances)

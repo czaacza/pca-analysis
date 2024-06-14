@@ -2,6 +2,8 @@ import asyncio
 import concurrent.futures
 import math
 import os
+import time
+
 
 class PCA_SVD_concurrent:
     def __init__(self, n_components):
@@ -9,24 +11,23 @@ class PCA_SVD_concurrent:
         self.components_ = None
         self.explained_variance_ = None
         self.num_cores = os.cpu_count() // 8
+        self.mean_ = None
+        self.X_centered_ = None
 
     def mean(self, X):
         return [sum(col) / len(col) for col in zip(*X)]
 
     def chunked_rows(self, X, n_chunks):
-        # Dzielenie wierszy na mniejsze grupy
-        chunk_size = (len(X) + n_chunks - 1) // n_chunks  # Zaokrąglenie w górę
+        chunk_size = (len(X) + n_chunks - 1) // n_chunks
         for i in range(0, len(X), chunk_size):
             yield X[i:i + chunk_size]
 
     def process_row_chunk(self, rows, mean):
-        # Centrowanie danych dla grupy wierszy
         return [[x - m for x, m in zip(row, mean)] for row in rows]
 
     def center_data(self, X, mean):
         with concurrent.futures.ProcessPoolExecutor() as executor:
             results = executor.map(self.process_row_chunk, self.chunked_rows(X, self.num_cores), [mean] * self.num_cores)
-            # Zbieranie wyników z poszczególnych procesów
             centered_data = [row for chunk in results for row in chunk]
         return centered_data
 
@@ -34,26 +35,21 @@ class PCA_SVD_concurrent:
         return list(map(list, zip(*X)))
 
     def process_chunk_multiply(self, chunk, B):
-        # Mnożenie chunka wierszy przez macierz B
         return [[sum(a * b for a, b in zip(A_row, B_col)) for B_col in zip(*B)] for A_row in chunk]
 
     def multiply(self, A, B):
         with concurrent.futures.ProcessPoolExecutor() as executor:
-            # Użycie map do przetwarzania każdego chunka danych równolegle
             results = executor.map(self.process_chunk_multiply, self.chunked_rows(A, self.num_cores), [B] * self.num_cores)
-            # Zbieranie wyników z poszczególnych procesów
             multiplied_matrix = [row for chunk in results for row in chunk]
 
         return multiplied_matrix
 
     def chunk_indices(self, n, n_chunks):
-        # Dzielenie indeksów na mniejsze grupy
         chunk_size = (n + n_chunks - 1) // n_chunks
         for i in range(0, n, chunk_size):
             yield range(i, min(i + chunk_size, n))
 
     def process_chunk_covariance(self, X_transposed, chunk, n_samples):
-        # Obliczanie fragmentu macierzy kowariancji
         partial_cov_matrix = [[0] * len(X_transposed) for _ in range(len(X_transposed))]
         for i in chunk:
             for j in range(len(X_transposed)):
@@ -65,10 +61,8 @@ class PCA_SVD_concurrent:
         X_transposed = self.transpose(X)
         cov_matrix = [[0] * len(X_transposed) for _ in range(len(X_transposed))]
         with concurrent.futures.ProcessPoolExecutor() as executor:
-            # Użycie map do przetwarzania każdego chunka indeksów równolegle
             results = executor.map(self.process_chunk_covariance, [X_transposed] * self.num_cores,
                                    self.chunk_indices(len(X_transposed), self.num_cores), [n_samples] * self.num_cores)
-            # Zbieranie wyników i scalanie częściowych macierzy kowariancji
             for partial_cov_matrix in results:
                 for i in range(len(X_transposed)):
                     for j in range(len(X_transposed)):
@@ -114,9 +108,10 @@ class PCA_SVD_concurrent:
         return [[v1[i] * v2[j] * scalar for j in range(len(v2))] for i in range(len(v1))]
 
     def fit(self, X):
-        mean = self.mean(X)
-        X_centered = self.center_data(X, mean)
-        cov_matrix = self.covariance_matrix(X_centered)
+        time.time()
+        self.mean_ = self.mean(X)
+        self.X_centered_ = self.center_data(X, self.mean_)
+        cov_matrix = self.covariance_matrix(self.X_centered_)
         eigenvalues, eigenvectors = self.svd(cov_matrix)
         sorted_indices = sorted(range(len(eigenvalues)), key=lambda k: eigenvalues[k], reverse=True)
 
@@ -124,14 +119,12 @@ class PCA_SVD_concurrent:
         self.explained_variance_ = [eigenvalues[i] for i in sorted_indices[:self.n_components]]
         return self
 
-    def transform(self, X):
-        mean = self.mean(X)
-        X_centered = self.center_data(X, mean)
-        return self.multiply(X_centered, self.transpose(self.components_))
+    def transform(self):
+        return self.multiply(self.X_centered_, self.transpose(self.components_))
 
     def fit_transform(self, X):
         self.fit(X)
-        return self.transform(X)
+        return self.transform()
 
 
 def custom_pca_concurrent(scaled_data, n_components=2):
@@ -139,16 +132,4 @@ def custom_pca_concurrent(scaled_data, n_components=2):
     principal_components = pca.fit_transform(scaled_data)
     explained_variances = pca.explained_variance_
     return principal_components, explained_variances
-
-
-def list_shape(lst):
-    if isinstance(lst, list):
-        if not lst:
-            return (0,)
-        elif isinstance(lst[0], list):
-            return (len(lst), len(lst[0]))
-        else:
-            return (len(lst),)
-    else:
-        return ()
 

@@ -8,6 +8,8 @@ class PCA_SVD_multiprocessing:
         self.components_ = None
         self.explained_variance_ = None
         self.num_cores = os.cpu_count() // 8
+        self.mean_ = None
+        self.X_centered_ = None
 
     def mean(self, X):
         return [sum(col) / len(col) for col in zip(*X)]
@@ -104,9 +106,9 @@ class PCA_SVD_multiprocessing:
         return [[v1[i] * v2[j] * scalar for j in range(len(v2))] for i in range(len(v1))]
 
     def fit(self, X):
-        mean = self.mean(X)
-        X_centered = self.center_data(X, mean)
-        cov_matrix = self.covariance_matrix(X_centered)
+        self.mean_ = self.mean(X)
+        self.X_centered_ = self.center_data(X, self.mean_)
+        cov_matrix = self.covariance_matrix(self.X_centered_)
         eigenvalues, eigenvectors = self.svd(cov_matrix)
         sorted_indices = sorted(range(len(eigenvalues)), key=lambda k: eigenvalues[k], reverse=True)
 
@@ -114,28 +116,15 @@ class PCA_SVD_multiprocessing:
         self.explained_variance_ = [eigenvalues[i] for i in sorted_indices[:self.n_components]]
         return self
 
-    def transform(self, X):
-        mean = self.mean(X)
-        X_centered = self.center_data(X, mean)
-        return self.multiply(X_centered, self.transpose(self.components_))
+    def transform(self):
+        return self.multiply(self.X_centered_, self.transpose(self.components_))
 
     def fit_transform(self, X):
         self.fit(X)
-        return self.transform(X)
+        return self.transform()
 
 def custom_pca_multiprocessing(scaled_data, n_components=2):
     pca = PCA_SVD_multiprocessing(n_components=n_components)
     principal_components = pca.fit_transform(scaled_data)
     explained_variances = pca.explained_variance_
     return principal_components, explained_variances
-
-def list_shape(lst):
-    if isinstance(lst, list):
-        if not lst:
-            return (0,)
-        elif isinstance(lst[0], list):
-            return (len(lst), len(lst[0]))
-        else:
-            return (len(lst),)
-    else:
-        return ()

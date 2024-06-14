@@ -17,19 +17,19 @@ def main():
     
     scaler = StandardScaler()
     scaled_data = scaler.fit_transform(cleaned_data[features])
-    # scaled_data = scaled_data[:5000]  # Assume sufficient data
+    # scaled_data = scaled_data[:5000]
     print('scaled_data shape:', scaled_data.shape)
 
     pca_start = time.time()
     principal_components, explained_variances = custom_pca(scaled_data, n_components=2)
-    principal_components = np.array(principal_components)  # Ensure this is an array
+    principal_components = np.array(principal_components)
     pca_end = time.time()
 
     print("explained_variances", explained_variances)
 
     optimal_k = 5
     kmeans_start = time.time()
-    centers, labels = custom_kmeans(principal_components.tolist(), optimal_k)  # Ensure data compatibility
+    centers, labels = custom_kmeans(principal_components.tolist(), optimal_k)
     kmeans_end = time.time()
     full_end = time.time()
 

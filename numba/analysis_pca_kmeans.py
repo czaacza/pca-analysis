@@ -9,20 +9,16 @@ def main():
     full_start = time.time()
     data = pd.read_csv('../datasets/oof.csv')
 
-    # change the first column name to "EU COUNTRIES"
     data.columns.values[0] = "id"
-    
-    # Dropping rows with all null values and resetting the index
+
     cleaned_data = data.dropna(how='all').reset_index(drop=True)
 
-    # Selecting numerical columns (excluding country names)
     # features = cleaned_data.columns[100:]
     features = cleaned_data.columns[1:]
 
-    # Standardizing the data
     scaler = StandardScaler()
     scaled_data = scaler.fit_transform(cleaned_data[features])
-    scaled_data = scaled_data[:5000]  # Assuming there are at least 10000 rows after cleaning
+    scaled_data = scaled_data[:5000]
     print('scaled_data shape:', scaled_data.shape)
 
     print("Starting PCA")
@@ -42,7 +38,6 @@ def main():
 
     full_end = time.time()
 
-    # I want these variables to have a comma instead of dot as a decimal separator
     pca_time = (pca_end - pca_start).__str__().replace('.', ',')
     kmeans_time = (kmeans_end - kmeans_start).__str__().replace('.', ',')
     full_time = (full_end - full_start).__str__().replace('.', ',')
